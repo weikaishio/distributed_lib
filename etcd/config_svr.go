@@ -1,9 +1,8 @@
 package etcd
 
 import (
-	"time"
-
 	"context"
+	"time"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"
@@ -34,6 +33,48 @@ func NewConfigSvr(endpoints []string) (*ConfigSvr, error) {
 		cli: cli,
 	}, nil
 }
+
+/*
+多配置更新
+*/
+func (c *ConfigSvr) MultiSetKV(kvAry map[string]string) error {
+	ops := make([]clientv3.Op, 0)
+	for k, v := range kvAry {
+		op := clientv3.OpPut(k, v)
+		ops = append(ops, op)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), SETTIMEOUT)
+	resp, err := c.cli.Txn(ctx).Then(ops...).Commit()
+	cancel()
+	if err != nil {
+		switch err {
+		case context.Canceled:
+			log.Error("ctx is canceled by another routine: %v", err)
+		case context.DeadlineExceeded:
+			log.Error("ctx is attached with a deadline is exceeded: %v", err)
+		case rpctypes.ErrEmptyKey:
+			log.Error("client-side error: %v", err)
+		default:
+			log.Error("bad cluster endpoints, which are not etcd servers: %v", err)
+		}
+		return err
+	} else {
+		log.Info("kvAry:%v,resp:%v", kvAry, resp)
+		return nil
+	}
+}
+func (c *ConfigSvr) GetKey(key string) ([]*mvccpb.KeyValue, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), SETTIMEOUT)
+	resp, err := c.cli.Get(ctx, key)
+	cancel()
+	if err != nil {
+		log.Error("GetKey:%s,err:%v", key, err)
+		return nil, err
+	} else {
+		return resp.Kvs, nil
+	}
+}
 func (c *ConfigSvr) SetKV(key, value string) {
 	ctx, cancel := context.WithTimeout(context.Background(), SETTIMEOUT)
 	resp, err := c.cli.Put(ctx, key, value)
@@ -50,7 +91,7 @@ func (c *ConfigSvr) SetKV(key, value string) {
 			log.Error("bad cluster endpoints, which are not etcd servers: %v", err)
 		}
 	} else {
-		log.Info("resp:%v", resp)
+		log.Info("key:%s, value:%s, resp:%v", key, value, resp)
 	}
 }
 
