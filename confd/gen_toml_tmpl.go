@@ -47,7 +47,7 @@ we have two way for read conf
 1、by github.com/robfig/config package. ok
 2、by file read then replace
 */
-func (c *ConfdTomlT) confdTomlGen() error {
+func (c *ConfdTomlT) ConfdTomlGen() error {
 	if c.ConfPath == "" {
 		return errors.New("confdTomlGen confPath is nil")
 	}

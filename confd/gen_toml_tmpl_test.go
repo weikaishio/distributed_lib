@@ -11,6 +11,6 @@ func Test_confdTomlGen(t *testing.T) {
 		Prefix:   "test",
 		ConfPath: "basic.conf",
 	}
-	err := confdt.confdTomlGen()
+	err := confdt.ConfdTomlGen()
 	assert.Nil(t, err, "confdTomlGen fail")
 }
