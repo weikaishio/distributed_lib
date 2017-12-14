@@ -9,8 +9,9 @@ import (
 )
 
 var (
-	cfgSvr     *ConfigSvr
-	endpoints  = []string{"127.0.0.1:2379"}
+	cfgSvr *ConfigSvr
+	//endpoints  = []string{"127.0.0.1:2379"}
+	endpoints  = []string{"52.187.8.211:2379"}
 	discovery  *Discovery
 	serviceKey = fmt.Sprintf("/%s/%s", PREFIX, key)
 )
@@ -26,7 +27,7 @@ etcdctl mkdir /here/you/go --ttl 120
 etcdctl rm /a --recursive
 */
 const (
-	prefix = "service"
+	prefix = "/service_healthjob"
 	key    = "WatchSvr"
 )
 
@@ -44,8 +45,26 @@ func init() {
 
 func TestConfigSvr_MultiSetKV(t *testing.T) {
 	kv := make(map[string]string)
-	kv[prefix+"/mysql:driver"] = "1"
-	kv[prefix+"/mysql:host"] = "2"
+
+	kv[prefix+"/log:level"] = "level"
+	kv[prefix+"/log:path"] = "path"
+	kv[prefix+"/job:runrule"] = "121"
+	kv[prefix+"/job:port"] = "1"
+	kv[prefix+"/job:isProduction"] = "1"
+
+	kv[prefix+"/mysql:sg:driver"] = "1"
+	kv[prefix+"/mysql:sg:host"] = "2"
+	kv[prefix+"/mysql:sg:database"] = "2"
+	kv[prefix+"/mysql:sg:username"] = "2"
+	kv[prefix+"/mysql:sg:password"] = "2"
+
+	kv[prefix+"/redis:sg:host"] = "2"
+	kv[prefix+"/redis:sg:password"] = "2"
+	kv[prefix+"/redis:sg:database"] = "2"
+	kv[prefix+"/redis:usw:host"] = "2"
+	kv[prefix+"/redis:usw:password"] = "password"
+	kv[prefix+"/redis:usw:database"] = "2"
+
 	cfgSvr.MultiSetKV(kv)
 }
 
