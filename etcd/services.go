@@ -28,9 +28,12 @@ const (
 	PREFIX = "ServicePref"
 )
 
-func NewDiscovery(endpoints []string) (*Discovery, error) {
+func NewDiscovery(endpoints []string, username, password string) (*Discovery, error) {
 	cliCfg := clientv3.Config{
-		Endpoints: endpoints,
+		Endpoints:   endpoints,
+		DialTimeout: DIALTIMEOUT,
+		Username:    username,
+		Password:    password,
 	}
 	cli, err := clientv3.New(cliCfg)
 	if err != nil {

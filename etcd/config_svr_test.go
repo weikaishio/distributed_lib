@@ -9,9 +9,8 @@ import (
 )
 
 var (
-	cfgSvr *ConfigSvr
-	//endpoints  = []string{"127.0.0.1:2379"}
-	endpoints  = []string{"52.187.8.211:2379"}
+	cfgSvr     *ConfigSvr
+	endpoints  = []string{"127.0.0.1:2379"}
 	discovery  *Discovery
 	serviceKey = fmt.Sprintf("/%s/%s", PREFIX, key)
 )
@@ -33,11 +32,11 @@ const (
 
 func init() {
 	var err error
-	cfgSvr, err = NewConfigSvr(endpoints)
+	cfgSvr, err = NewConfigSvr(endpoints, "root", "root")
 	if err != nil {
 		log.Fatal("NewConfigSvr err:%v", err)
 	}
-	discovery, err = NewDiscovery(endpoints)
+	discovery, err = NewDiscovery(endpoints, "root", "root")
 	if err != nil {
 		log.Fatal("NewDiscovery err:%v", err)
 	}

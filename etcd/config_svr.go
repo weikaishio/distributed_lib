@@ -20,10 +20,12 @@ const (
 	SETTIMEOUT  = 5 * time.Second
 )
 
-func NewConfigSvr(endpoints []string) (*ConfigSvr, error) {
+func NewConfigSvr(endpoints []string, username, password string) (*ConfigSvr, error) {
 	cliCfg := clientv3.Config{
 		Endpoints:   endpoints,
 		DialTimeout: DIALTIMEOUT,
+		Username:    username,
+		Password:    password,
 	}
 	cli, err := clientv3.New(cliCfg)
 	if err != nil {
