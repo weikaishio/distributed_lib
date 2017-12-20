@@ -42,30 +42,30 @@ func init() {
 	}
 }
 
-func TestConfigSvr_MultiSetKV(t *testing.T) {
-	kv := make(map[string]string)
-
-	kv[prefix+"/log:level"] = "level"
-	kv[prefix+"/log:path"] = "path"
-	kv[prefix+"/job:runrule"] = "121"
-	kv[prefix+"/job:port"] = "1"
-	kv[prefix+"/job:isProduction"] = "1"
-
-	kv[prefix+"/mysql:sg:driver"] = "1"
-	kv[prefix+"/mysql:sg:host"] = "2"
-	kv[prefix+"/mysql:sg:database"] = "2"
-	kv[prefix+"/mysql:sg:username"] = "2"
-	kv[prefix+"/mysql:sg:password"] = "2"
-
-	kv[prefix+"/redis:sg:host"] = "2"
-	kv[prefix+"/redis:sg:password"] = "2"
-	kv[prefix+"/redis:sg:database"] = "2"
-	kv[prefix+"/redis:usw:host"] = "2"
-	kv[prefix+"/redis:usw:password"] = "password"
-	kv[prefix+"/redis:usw:database"] = "2"
-
-	cfgSvr.MultiSetKV(kv)
-}
+//func TestConfigSvr_MultiSetKV(t *testing.T) {
+//	kv := make(map[string]string)
+//
+//	kv[prefix+"/log:level"] = "pwd1"
+//	kv[prefix+"/log:path"] = "path1"
+//	kv[prefix+"/job:runrule"] = "121"
+//	kv[prefix+"/job:port"] = "1"
+//	kv[prefix+"/job:isProduction"] = "1"
+//
+//	kv[prefix+"/mysql:sg:driver"] = "1"
+//	kv[prefix+"/mysql:sg:host"] = "2"
+//	kv[prefix+"/mysql:sg:database"] = "2"
+//	kv[prefix+"/mysql:sg:username"] = "2"
+//	kv[prefix+"/mysql:sg:password"] = "2"
+//
+//	kv[prefix+"/redis:sg:host"] = "host"
+//	kv[prefix+"/redis:sg:password"] = "password2"
+//	kv[prefix+"/redis:sg:database"] = "2"
+//	kv[prefix+"/redis:usw:host"] = "2"
+//	kv[prefix+"/redis:usw:password"] = "password"
+//	kv[prefix+"/redis:usw:database"] = "2"
+//
+//	cfgSvr.MultiSetKV(kv)
+//}
 
 //func TestConfigSvr_SetKV(t *testing.T) {
 //	key := "/service_healthjob/redis:sg:host"
@@ -82,6 +82,10 @@ func TestConfigSvr_MultiSetKV(t *testing.T) {
 //	}
 //	time.Sleep(10 * time.Second)
 //}
+
+func TestDiscovery_WatchService(t *testing.T) {
+	cfgSvr.Watch("/ServicePref/push/127.0.0.1:8890")
+}
 
 //func TestDiscovery_Register(t *testing.T) {
 //	t.Logf("serviceKey:%s", serviceKey)

@@ -143,9 +143,15 @@ func (c *Discovery) UnRegister(serviceName string, host string, port int) error 
 func (c *Discovery) NewBalancer() grpc.Balancer {
 	return grpc.RoundRobin(c.resolver)
 }
-func (c *Discovery) Dial(service string) (*grpc.ClientConn, error) {
-	log.Info("Dial:%v", grpc.WithBalancer(c.NewBalancer()))
-	return nil, nil
+func (c *Discovery) Dial(serviceName string) (*grpc.ClientConn, error) {
+	b := c.NewBalancer()
+	service := fmt.Sprintf("/%s/%s", PREFIX, serviceName)
+	// must add DialOption grpc.WithBlock, or it will rpc error: code = Unavailable desc = there is no address available
+	conn, err := grpc.Dial(service, grpc.WithBalancer(b), grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		log.Error("Discovery service:%s,err:%v", service, err)
+	}
+	return conn, err
 }
 func (c *Discovery) WatchService(serviceName string) error {
 	serviceKey := fmt.Sprintf("/%s/%s", PREFIX, serviceName)
