@@ -79,7 +79,6 @@ func (c *ConfdTomlT) ConfdTomlGen() error {
 			c.TmplSrc = c.Prefix + "_" + c.TmplSrc
 		}
 	}
-	c.TmplSrc = path.Join(DIR_TEMPLATES, c.TmplSrc)
 	if c.TomlDest == "" {
 		c.TomlDest = fmt.Sprintf("%s.toml", file)
 		if c.Prefix != "" {
@@ -106,9 +105,8 @@ func (c *ConfdTomlT) ConfdTomlGen() error {
 	err = ioutil.WriteFile(c.TomlDest, []byte(tomlStr), 0666)
 	if err != nil {
 		log.Warn("ioutil.WriteFile(%s, []byte(%s), 0666),err:%v", c.TomlDest, tomlStr, err)
-
 	}
-	err = conf.WriteFile(c.TmplSrc, 0666, "#general by zgen")
+	err = conf.WriteFile(path.Join(DIR_TEMPLATES, c.TmplSrc), 0666, "#general by zgen")
 	if err != nil {
 		log.Warn("conf.WriteFile(%s, os.ModeType),err:%v", c.TmplSrc, err)
 	}
