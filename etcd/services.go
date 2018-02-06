@@ -147,7 +147,7 @@ func (c *Discovery) Dial(serviceName string) (*grpc.ClientConn, error) {
 	b := c.NewBalancer()
 	service := fmt.Sprintf("/%s/%s", PREFIX, serviceName)
 	// must add DialOption grpc.WithBlock, or it will rpc error: code = Unavailable desc = there is no address available
-	conn, err := grpc.Dial(service, grpc.WithBalancer(b), grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.Dial(service, grpc.WithBalancer(b), grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(DIALTIMEOUT))
 	if err != nil {
 		log.Error("Discovery service:%s,err:%v", service, err)
 	}
