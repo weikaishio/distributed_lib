@@ -16,7 +16,7 @@ type ConfigSvr struct {
 }
 
 const (
-	DIALTIMEOUT = 15 * time.Second
+	DIALTIMEOUT = 25 * time.Second
 	SETTIMEOUT  = 5 * time.Second
 )
 

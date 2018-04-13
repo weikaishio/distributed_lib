@@ -13,6 +13,7 @@ import (
 	"github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"
 	"github.com/mkideal/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/naming"
 )
 
@@ -147,7 +148,51 @@ func (c *Discovery) Dial(serviceName string) (*grpc.ClientConn, error) {
 	b := c.NewBalancer()
 	service := fmt.Sprintf("/%s/%s", PREFIX, serviceName)
 	// must add DialOption grpc.WithBlock, or it will rpc error: code = Unavailable desc = there is no address available
-	conn, err := grpc.Dial(service, grpc.WithBalancer(b), grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(DIALTIMEOUT))
+	conn, err := grpc.Dial(service,
+		grpc.WithBalancer(b),
+		grpc.WithInsecure(),
+		grpc.WithBlock(),
+		grpc.WithTimeout(DIALTIMEOUT))
+	if err != nil {
+		log.Error("Discovery service:%s,err:%v", service, err)
+	}
+	return conn, err
+}
+
+/*
+server need implemented creds when with tls
+creds, err := credentials.NewServerTLSFromFile("./xx.com.pem", "./xx.com.key")
+*/
+func (c *Discovery) DialWithAuth(serviceName, userName, password, serverName, certFile string) (*grpc.ClientConn, error) {
+	service := fmt.Sprintf("/%s/%s", PREFIX, serviceName)
+	// must add DialOption grpc.WithBlock, or it will rpc error: code = Unavailable desc = there is no address available
+	var opts []grpc.DialOption
+	b := c.NewBalancer()
+	opts = append(opts, grpc.WithBalancer(b))
+	opts = append(opts, grpc.WithBlock())
+	opts = append(opts, grpc.WithTimeout(DIALTIMEOUT))
+	isTLS := serverName != "" && certFile != ""
+	if isTLS {
+		creds, err := credentials.NewClientTLSFromFile(certFile, serverName)
+		if err != nil {
+			log.Error("DialWithAuth Failed to create TLS credentials %v", err)
+			return nil, err
+		}
+		opts = append(opts, grpc.WithTransportCredentials(creds))
+	} else {
+		opts = append(opts, grpc.WithInsecure())
+	}
+	if userName != "" && password != "" {
+		authCreds := &AuthCreds{
+			UserName: userName,
+			Password: password,
+			IsTLS:    isTLS,
+		}
+		opts = append(opts, grpc.WithPerRPCCredentials(authCreds))
+	}
+	conn, err := grpc.Dial(service, opts...) //grpc.WithInsecure(),
+	//grpc.WithPerRPCCredentials(credentials.PerRPCCredentials(authCreds)),
+
 	if err != nil {
 		log.Error("Discovery service:%s,err:%v", service, err)
 	}
@@ -165,4 +210,23 @@ func (c *Discovery) WatchService(serviceName string) error {
 			log.Info("up:%v", up)
 		}
 	}
+}
+
+type AuthCreds struct {
+	UserName string
+	Password string
+	IsTLS    bool
+}
+
+func (a *AuthCreds) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+	return map[string]string{
+		"username": a.UserName,
+		"password": a.Password,
+	}, nil
+}
+
+// RequireTransportSecurity indicates whether the credentials requires
+// transport security.
+func (a *AuthCreds) RequireTransportSecurity() bool {
+	return a.IsTLS
 }
