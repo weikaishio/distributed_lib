@@ -198,6 +198,41 @@ func (c *Discovery) DialWithAuth(serviceName, userName, password, serverName, ce
 	}
 	return conn, err
 }
+func DialWithAuthWithAddr(addr, userName, password, serverName, certFile string) (*grpc.ClientConn, error) {
+	service := addr
+	// must add DialOption grpc.WithBlock, or it will rpc error: code = Unavailable desc = there is no address available
+	var opts []grpc.DialOption
+	//b := c.NewBalancer()
+	//opts = append(opts, grpc.WithBalancer(b))
+	opts = append(opts, grpc.WithBlock())
+	opts = append(opts, grpc.WithTimeout(DIALTIMEOUT))
+	isTLS := serverName != "" && certFile != ""
+	if isTLS {
+		creds, err := credentials.NewClientTLSFromFile(certFile, serverName)
+		if err != nil {
+			log.Error("DialWithAuth Failed to create TLS credentials %v", err)
+			return nil, err
+		}
+		opts = append(opts, grpc.WithTransportCredentials(creds))
+	} else {
+		opts = append(opts, grpc.WithInsecure())
+	}
+	if userName != "" && password != "" {
+		authCreds := &AuthCreds{
+			UserName: userName,
+			Password: password,
+			IsTLS:    isTLS,
+		}
+		opts = append(opts, grpc.WithPerRPCCredentials(authCreds))
+	}
+	conn, err := grpc.Dial(service, opts...) //grpc.WithInsecure(),
+	//grpc.WithPerRPCCredentials(credentials.PerRPCCredentials(authCreds)),
+
+	if err != nil {
+		log.Error("Discovery service:%s,err:%v", service, err)
+	}
+	return conn, err
+}
 func (c *Discovery) WatchService(serviceName string) error {
 	serviceKey := fmt.Sprintf("/%s/%s", PREFIX, serviceName)
 	watch, err := c.resolver.Resolve(serviceKey)
