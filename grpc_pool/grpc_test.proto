@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package grpc_pool;
+
+service grpc_test{
+    rpc HelloWorld(HelloWorldModel) returns (CommonResp);
+}
+
+message HelloWorldModel{
+    string title = 1;
+}
+
+//返回的状态值
+enum ReturnStatus {
+    StatusFail = 0; //处理失败
+    StatusSuccess = 1; //成功
+    StatusArgumentInvalid = 2; //参数错误
+    StatusAuthVerifyFail = 3; //访问校验失败
+}
+
+message CommonResp {
+    ReturnStatus status = 1;
+    string desc = 2;
+}
+//protoc --go_out=plugins=grpc:. grpc_test.proto
