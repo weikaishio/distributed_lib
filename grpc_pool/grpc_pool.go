@@ -14,18 +14,20 @@ const (
 	pool_max_size     = 66
 	pool_conn_timeout = 600 * time.Second
 )
-
+type Connection interface{
+	Close() error
+}
 type PoolConn struct {
-	*grpc.ClientConn
+	Connection
 	t time.Time
 }
 type RPCPool struct {
 	poolChan chan *PoolConn
 	mu       sync.RWMutex
-	makeConn func() (*grpc.ClientConn, error)
+	makeConn func() (Connection, error)
 }
 
-func NewRPCPool(makeGRPCConn func() (*grpc.ClientConn, error)) *RPCPool {
+func NewRPCPool(makeGRPCConn func() (Connection, error)) *RPCPool {
 	return &RPCPool{
 		poolChan: make(chan *PoolConn, pool_max_size),
 		mu:       sync.RWMutex{},
@@ -52,7 +54,7 @@ func (p *RPCPool) getPool() chan *PoolConn {
 	return conns
 }
 
-func (p *RPCPool) CreateConn() *grpc.ClientConn {
+func (p *RPCPool) CreateConn() Connection {
 	conn, err := p.makeConn()
 	if err != nil {
 		log.Error("RPCPool CreateConn makeConn err:%v", err)
@@ -61,7 +63,7 @@ func (p *RPCPool) CreateConn() *grpc.ClientConn {
 		return conn
 	}
 }
-func (p *RPCPool) Borrow() *grpc.ClientConn {
+func (p *RPCPool) Borrow() Connection {
 	conns := p.getPool()
 	if conns == nil {
 		return nil
@@ -71,23 +73,29 @@ func (p *RPCPool) Borrow() *grpc.ClientConn {
 		case conn := <-conns:
 			if conn.t.Add(pool_conn_timeout).Before(time.Now()) {
 				log.Trace("RPCPool Borrow conn is time of arrival close.")
-				conn.ClientConn.Close()
-				continue
-			} else if conn.GetState() != connectivity.Ready {
-				log.Warn("RPCPool Borrow conn.state not in ready, it state is:%s", conn.GetState().String())
-				switch conn.GetState() {
-				case connectivity.Idle:
-				case connectivity.Connecting:
-				case connectivity.TransientFailure:
-					fallthrough
-				case connectivity.Shutdown:
-					fallthrough
-				default:
-					conn.ClientConn.Close()
-				}
+				conn.Close()
 				continue
 			} else {
-				return conn.ClientConn
+				grpcConn:=conn.Connection.(*grpc.ClientConn)
+				if grpcConn!=nil {
+
+				}
+				if grpcConn.GetState() != connectivity.Ready {
+					log.Warn("RPCPool Borrow conn.state not in ready, it state is:%s", grpcConn.GetState().String())
+					switch grpcConn.GetState() {
+					case connectivity.Idle:
+					case connectivity.Connecting:
+					case connectivity.TransientFailure:
+						fallthrough
+					case connectivity.Shutdown:
+						fallthrough
+					default:
+						conn.Close()
+					}
+					continue
+				} else {
+					return conn.Connection
+				}
 			}
 		case <-time.After(time.Second):
 			if len(conns) < pool_max_size {
@@ -102,7 +110,7 @@ func (p *RPCPool) Borrow() *grpc.ClientConn {
 	}
 	return nil
 }
-func (p *RPCPool) Return(conn *grpc.ClientConn) {
+func (p *RPCPool) Return(conn Connection) {
 	if conn == nil || p.poolChan == nil {
 		return
 	}

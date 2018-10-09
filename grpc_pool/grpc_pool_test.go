@@ -53,7 +53,7 @@ func makeCliPool(){
 	//	return discovery.DialWithAuth(SERVICE_NAME, RPC_AUTH_NAME, RPC_AUTH_PWD, SERVER_Name, CER_FILE)
 	//}
 	//2、normal dial addr
-	makeConn := func() (*grpc.ClientConn, error) {
+	makeConn := func() (Connection, error) {
 		//return grpc.Dial(fmt.Sprintf("127.0.0.1:%d", PORT), grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(time.Duration(1000)*time.Millisecond))
 		return etcd.DialWithAuthWithAddr(fmt.Sprintf("127.0.0.1:%d", PORT),RPC_AUTH_NAME, RPC_AUTH_PWD,SERVER_Name, CER_FILE)
 	}
@@ -132,7 +132,7 @@ func TestRPCPool_Borrow(t *testing.T) {
 		defer rpcPool.Return(conn)
 	}
 
-	cli := NewGrpcTestClient(conn)
+	cli := NewGrpcTestClient(conn.(*grpc.ClientConn))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
