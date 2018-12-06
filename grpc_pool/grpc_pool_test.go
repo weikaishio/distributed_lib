@@ -128,6 +128,7 @@ func TestRPCPool_Borrow(t *testing.T) {
 	conn := rpcPool.Borrow()
 	if conn == nil {
 		t.Log("执行出错，无可用连接")
+		return
 	} else {
 		defer rpcPool.Return(conn)
 	}
