@@ -29,6 +29,7 @@ type LazyMysqlOperate struct {
 	operateType LazyOperateType
 	cols        []string
 	condition   string // 1=1 and x=xx
+	limit       int
 }
 
 type operatesSupportSort []*LazyMysqlOperate
@@ -110,14 +111,15 @@ func (a *LazyMysql) Exec() {
 	}
 }
 func (a *LazyMysql) Flush() error {
-	log.Trace("LazyMysql's Flush begin")
-	defer log.Trace("LazyMysql's Flush end")
 	a.lock.RLock()
 	if len(a.waitHandle) == 0 {
 		a.lock.RUnlock()
 		log.Trace("LazyMysql's Flush need handle count is 0")
 		return nil
 	}
+
+	log.Trace("LazyMysql's Flush begin")
+	defer log.Trace("LazyMysql's Flush end")
 
 	log.Trace("LazyMysql's Flush need handle count:%d", len(a.waitHandle))
 	keys := make([]int32, 0)
@@ -149,10 +151,28 @@ func (a *LazyMysql) Flush() error {
 			if v.condition == "" {
 				v.condition = "1=1"
 			}
-			_, err = session.Where(v.condition).Cols(v.cols...).Update(v.tb)
+			session = session.Where(v.condition).Cols(v.cols...)
+			if v.limit > 0 {
+				session.Limit(v.limit)
+			}
+			_, err = session.Update(v.tb)
 			if err != nil {
-				log.Error("lazy_mysql's Flush Update data:%v,condition:%v,err:%v", v.tb, v.condition, err)
+				log.Error("lazy_mysql's Flush Update data:%v,condition:%v,v.cols:%v,err:%v", v.tb, v.condition, v.cols, err)
 				continue
+			}
+		case LazyOperateType_Delete:
+			if v.condition != "" {
+				session = session.Where(v.condition).Cols(v.cols...)
+				if v.limit > 0 {
+					session.Limit(v.limit)
+				}
+				_, err = session.Delete(v.tb)
+				if err != nil {
+					log.Error("lazy_mysql's Flush Delete data:%v,condition:%v,v.cols:%v,err:%v", v.tb, v.condition, v.cols, err)
+					continue
+				}
+			} else {
+				log.Error("lazy_mysql's Flush Delete data:%v,condition:%v is nil not support", v.tb, v.condition, v.cols, err)
 			}
 		default:
 			tbBys, _ := json.Marshal(v.tb)
@@ -176,6 +196,9 @@ func (a *LazyMysql) Flush() error {
 
 //if it added fail, need handle directly
 func (a *LazyMysql) Add(tb interface{}, operateType LazyOperateType, cols []string, condition string) error {
+	return a.AddWithLimit(tb, operateType, cols, condition, 0)
+}
+func (a *LazyMysql) AddWithLimit(tb interface{}, operateType LazyOperateType, cols []string, condition string, limit int) error {
 	if atomic.LoadInt32(&a.isRunning) != 1 {
 		log.Error("LazyMysql's Add exec failed, for it's already stoped (%v,%v,%v)", tb, operateType, condition)
 		return ERR_AlreadyStop
@@ -187,6 +210,7 @@ func (a *LazyMysql) Add(tb interface{}, operateType LazyOperateType, cols []stri
 		operateType: operateType,
 		cols:        cols,
 		condition:   condition,
+		limit:       limit,
 	}
 	a.lock.Lock()
 	a.waitHandle[operateObj.seq] = operateObj
