@@ -114,7 +114,7 @@ func (a *LazyMysql) Flush() error {
 	a.lock.RLock()
 	if len(a.waitHandle) == 0 {
 		a.lock.RUnlock()
-		log.Trace("LazyMysql's Flush need handle count is 0")
+		//log.Trace("LazyMysql's Flush need handle count is 0")
 		return nil
 	}
 
