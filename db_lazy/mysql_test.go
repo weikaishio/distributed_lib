@@ -27,8 +27,10 @@ func init() {
 	if err != nil {
 		log.Fatal("NewEngine:%s,err:%v", dataSourceName, err)
 	} else {
+		orm.Sync(&OperateLogTb{})
 		lazyMysql = NewLazyMysql(orm, 30)
 		go lazyMysql.Exec()
+		time.Sleep(10*time.Millisecond)
 	}
 }
 
@@ -41,7 +43,7 @@ type OperateLogTb struct {
 }
 
 func TestLazyMysql_Add(t *testing.T) {
-	for i := 1000; i < 1010; i++ {
+	for i := 1; i < 10; i++ {
 		lazyMysql.Add(&OperateLogTb{
 			AdminName:      fmt.Sprintf("AdminName%d", i),
 			OperateContent: fmt.Sprintf("OperateContent%d", i),
@@ -49,14 +51,28 @@ func TestLazyMysql_Add(t *testing.T) {
 			CreatedTime:    time.Now().Unix(),
 		}, LazyOperateType_Insert, nil, "")
 	}
-	time.Sleep(35 * time.Second)
-	for i := 1100; i < 1110; i++ {
+	time.Sleep(1 * time.Second)
+	for i := 10; i < 20; i++ {
 		lazyMysql.Add(&OperateLogTb{
 			AdminName:      fmt.Sprintf("AdminName%d", i),
 			OperateContent: fmt.Sprintf("OperateContent%d", i),
 			OperateType:    1,
 			CreatedTime:    time.Now().Unix(),
 		}, LazyOperateType_Insert, nil, "")
+	}
+	time.Sleep(1 * time.Second)
+	for i := 20; i < 24; i++ {
+		err := lazyMysql.AddSQL("INSERT INTO operate_log_tb(admin_name,operate_content,operate_type,created_time) "+
+			"value('%s','%s','%d','%d');", fmt.Sprintf("AdminName%d", i), fmt.Sprintf("OperateContent%d", i), 2, time.Now().Unix())
+		if err != nil {
+			t.Logf("err:%v", err)
+		}
+	}
+	for i := 20; i < 24; i++ {
+		err := lazyMysql.AddSQL("UPDATE operate_log_tb set operate_content='%s' where admin_name='%s';", fmt.Sprintf("OperateContent_%d", i), fmt.Sprintf("AdminName%d", i))
+		if err != nil {
+			t.Logf("err:%v", err)
+		}
 	}
 	lazyMysql.Quit()
 }

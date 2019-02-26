@@ -21,6 +21,7 @@ const (
 	LazyOperateType_Insert LazyOperateType = 1
 	LazyOperateType_Update LazyOperateType = 2
 	LazyOperateType_Delete LazyOperateType = 3
+	LazyOperateType_SQL    LazyOperateType = 4
 )
 
 type LazyMysqlOperate struct {
@@ -29,6 +30,7 @@ type LazyMysqlOperate struct {
 	operateType LazyOperateType
 	cols        []string
 	condition   string // 1=1 and x=xx
+	sql         string // sql!=""||tb!=nil
 	limit       int
 }
 
@@ -82,7 +84,10 @@ func (a *LazyMysql) Quit() {
 	log.Warn("LazyMysql's Quit begin")
 	atomic.StoreInt32(&a.isRunning, 0)
 	a.quit <- struct{}{}
-	a.Flush() //再次确认处理完毕
+	err := a.Flush() //再次确认处理完毕
+	if err != nil {
+		log.Error("LazyMysql's Exec Flush err:%v", err)
+	}
 	log.Warn("LazyMysql's Quit end")
 }
 func (a *LazyMysql) IsRunning() bool {
@@ -174,6 +179,16 @@ func (a *LazyMysql) Flush() error {
 			} else {
 				log.Error("lazy_mysql's Flush Delete data:%v,condition:%v is nil not support", v.tb, v.condition, v.cols, err)
 			}
+		case LazyOperateType_SQL:
+			if v.sql != "" {
+				_, err := session.Exec(v.sql)
+				if err != nil {
+					log.Error("lazy_mysql's Flush Exec sql:%v,err:%v", v.sql, err)
+					continue
+				}
+			} else {
+				log.Error("lazy_mysql's Flush Exec sql:%v is nil not support", v.sql, err)
+			}
 		default:
 			tbBys, _ := json.Marshal(v.tb)
 			log.Error("LazyMysql's Flush %v:%d,data:%v,condition:%v", ERR_NotImpletementOperateType, v.operateType, string(tbBys), v.condition)
@@ -196,11 +211,14 @@ func (a *LazyMysql) Flush() error {
 
 //if it added fail, need handle directly
 func (a *LazyMysql) Add(tb interface{}, operateType LazyOperateType, cols []string, condition string) error {
-	return a.AddWithLimit(tb, operateType, cols, condition, 0)
+	return a.AddWithLimit(tb, "", operateType, cols, condition, 0)
 }
-func (a *LazyMysql) AddWithLimit(tb interface{}, operateType LazyOperateType, cols []string, condition string, limit int) error {
+func (a *LazyMysql) AddSQL(sql string, params ...interface{}) error {
+	return a.AddWithLimit(nil, fmt.Sprintf(sql, params...), LazyOperateType_SQL, nil, "", 0)
+}
+func (a *LazyMysql) AddWithLimit(tb interface{}, sql string, operateType LazyOperateType, cols []string, condition string, limit int) error {
 	if atomic.LoadInt32(&a.isRunning) != 1 {
-		log.Error("LazyMysql's Add exec failed, for it's already stoped (%v,%v,%v)", tb, operateType, condition)
+		log.Error("LazyMysql's Add exec failed, for it's already stoped (%v,%v,%v,%v,%v)", tb, sql, operateType, condition, cols)
 		return ERR_AlreadyStop
 	}
 	atomic.AddInt32(&a.seq, 1)
@@ -211,6 +229,7 @@ func (a *LazyMysql) AddWithLimit(tb interface{}, operateType LazyOperateType, co
 		cols:        cols,
 		condition:   condition,
 		limit:       limit,
+		sql:         sql,
 	}
 	a.lock.Lock()
 	a.waitHandle[operateObj.seq] = operateObj
