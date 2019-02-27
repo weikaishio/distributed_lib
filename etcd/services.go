@@ -8,9 +8,9 @@ import (
 
 	"sync"
 
-	"go.etcd.io/etcd/clientv3"
-	etcdnaming "go.etcd.io/etcd/clientv3/naming"
-	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
+	"github.com/coreos/etcd/clientv3"
+	etcdnaming "github.com/coreos/etcd/clientv3/naming"
+	"github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"
 	"github.com/mkideal/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
