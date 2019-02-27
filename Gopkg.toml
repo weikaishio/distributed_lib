@@ -22,7 +22,7 @@
 
 [[constraint]]
   name = "github.com/go-sql-driver/mysql"
-  version = "1.4.1"
+  branch = "master"
 
 [[constraint]]
   name = "github.com/go-xorm/xorm"
@@ -34,7 +34,7 @@
 
 [[constraint]]
   name = "github.com/mkideal/log"
-  version = "0.1.0"
+  branch = "master"
 
 [[constraint]]
   branch = "master"
