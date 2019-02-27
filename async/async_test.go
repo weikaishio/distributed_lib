@@ -19,10 +19,10 @@ func init() {
 	cpuCount := runtime.GOMAXPROCS(runtime.NumCPU())
 	fmt.Printf("cpu count:%d\n", cpuCount)
 	engine = NewEngine(uint32(cpuCount))
+	go engine.Start()
 }
 
 func TestAsyncEngine_AddTask(t *testing.T) {
-	go engine.Start()
 
 	startTime := time.Now()
 	for i := 0; i < 3; i++ {
