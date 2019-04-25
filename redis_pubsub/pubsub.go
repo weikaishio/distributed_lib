@@ -81,10 +81,6 @@ func (r *RdsPubSubMsg) StartSubscription() {
 
 	log.Info("StartSubscription")
 	defer atomic.CompareAndSwapInt32(&r.running, 1, 0)
-	var channels []string
-	for k, _ := range r.newMsgRev {
-		channels = append(channels, k)
-	}
 
 	sleepSecond := 3
 	for r.IsRunning() {
@@ -94,8 +90,14 @@ func (r *RdsPubSubMsg) StartSubscription() {
 				log.Warn("StartSubscription rdsPubSubClient.redisClient is nil")
 				break
 			}
-			subCli := r.redisClient.PSubscribe(channels...)
 			for r.IsRunning() {
+				var channels []string
+				r.updateLock.RLock()
+				for k, _ := range r.newMsgRev {
+					channels = append(channels, k)
+				}
+				r.updateLock.RUnlock()
+				subCli := r.redisClient.PSubscribe(channels...)
 				isOpen, _ := r.subscription(subCli, sleepSecond, channels)
 
 				if !isOpen {
