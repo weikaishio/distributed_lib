@@ -19,6 +19,7 @@ type RdsPubSubMsg struct {
 	newMsgRev   map[string]func(msg interface{})
 	lock        sync.RWMutex
 	running     int32
+	newChannel  chan struct{}
 }
 
 var (
@@ -35,7 +36,8 @@ var (
 func SharedRdsSubscribMsgInstance() *RdsPubSubMsg {
 	onceMsg.Do(func() {
 		rdsPubSubMsgClient = &RdsPubSubMsg{
-			newMsgRev: make(map[string]func(msg interface{})),
+			newMsgRev:  make(map[string]func(msg interface{})),
+			newChannel: make(chan struct{}),
 		}
 	})
 	return rdsPubSubMsgClient
@@ -45,6 +47,9 @@ func (r *RdsPubSubMsg) AddSubscribe(channel string, onRevMsg func(msg interface{
 	r.updateLock.Lock()
 	defer r.updateLock.Unlock()
 	r.newMsgRev[channel] = onRevMsg
+	go func() {
+		r.newChannel <- struct{}{}
+	}()
 }
 
 func (r *RdsPubSubMsg) Publish(channel string, msg interface{}) error {
@@ -134,6 +139,8 @@ func (r *RdsPubSubMsg) subscription(subCli *redis.PubSub, sleepSecond int, chann
 		} else {
 			return false, nil
 		}
+	case <-r.newChannel:
+		log.Info("StartSubscription new channel rev")
 	case <-time.After(30 * time.Minute):
 		log.Info("StartSubscription <-sub.Channel() timeout for 30 min")
 	}
