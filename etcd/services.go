@@ -8,9 +8,9 @@ import (
 
 	"sync"
 
-	"github.com/coreos/etcd/clientv3"
-	etcdnaming "github.com/coreos/etcd/clientv3/naming"
-	"github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"
+	"go.etcd.io/etcd/clientv3"
+	etcdnaming "go.etcd.io/etcd/clientv3/naming"
+	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
 	"github.com/mkideal/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -190,6 +190,7 @@ func (c *Discovery) DialWithAuth(serviceName, userName, password, serverName, ce
 		}
 		opts = append(opts, grpc.WithPerRPCCredentials(authCreds))
 	}
+
 	conn, err := grpc.Dial(service, opts...) //grpc.WithInsecure(),
 	//grpc.WithPerRPCCredentials(credentials.PerRPCCredentials(authCreds)),
 
