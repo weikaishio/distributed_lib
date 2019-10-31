@@ -30,7 +30,7 @@ func init() {
 	redisClient = redis.NewClient(&options)
 	ping, err := redisClient.Ping().Result()
 	if err != nil {
-		redisClient.Close()
+		_ = redisClient.Close()
 		log.Fatal("Redis failed to ping, options:%v,err: %v", options, err)
 	}
 	if strings.ToLower(ping) != "pong" {
@@ -59,11 +59,11 @@ func TestRdsPubSubMsg_AddSubscribe(t *testing.T) {
 	for {
 		select {
 		case <-time.After(3 * time.Second):
-			SharedRdsSubscribMsgInstance().Publish("test1", PubsubMsgTest{
+			_ = SharedRdsSubscribMsgInstance().Publish("test1", PubsubMsgTest{
 				Title:   "test",
 				Content: "content",
 			})
-			SharedRdsSubscribMsgInstance().Publish("test2", PubsubMsgTest{
+			_ = SharedRdsSubscribMsgInstance().Publish("test2", PubsubMsgTest{
 				Title:   "test2",
 				Content: "content2",
 			})

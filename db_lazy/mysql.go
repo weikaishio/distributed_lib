@@ -101,12 +101,15 @@ func (a *LazyMysql) Exec() {
 	}
 	defer atomic.CompareAndSwapInt32(&a.isRunning, 1, 0)
 	for a.IsRunning() {
-		distributed_lib.Try(func() {
+		err := distributed_lib.Try(func() {
 			err := a.Flush()
 			if err != nil {
 				log.Error("LazyMysql's Exec Flush err:%v", err)
 			}
 		})
+		if err != nil {
+			log.Error("LazyMysql's Exec Flush unhandled err:%v", err)
+		}
 		select {
 		case <-time.After(a.lazyDuration):
 		case <-a.quit:
@@ -197,7 +200,7 @@ func (a *LazyMysql) Flush() error {
 	}
 	err = session.Commit()
 	if err != nil {
-		session.Rollback()
+		_ = session.Rollback()
 		return fmt.Errorf("lazy_mysql's Flush session.Commit err:%v", err)
 	} else {
 		a.lock.Lock()

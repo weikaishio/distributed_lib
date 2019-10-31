@@ -13,7 +13,7 @@ import (
 )
 
 type RdsPubSubMsg struct {
-	redisClient *redis.Client
+	redisClient redis.Cmdable
 	subCli      *redis.PubSub
 	updateLock  sync.RWMutex
 	newMsgRev   map[string]func(msg interface{})
@@ -23,14 +23,9 @@ type RdsPubSubMsg struct {
 }
 
 var (
-	rdsPubSubClient  *RdsPubSubMsg
-	once             sync.Once
-	ERR_RedisNotInit = errors.New("redis not init")
-)
-
-var (
 	rdsPubSubMsgClient *RdsPubSubMsg
 	onceMsg            sync.Once
+	ERR_RedisNotInit   = errors.New("redis not init")
 )
 
 func SharedRdsSubscribMsgInstance() *RdsPubSubMsg {
@@ -69,7 +64,7 @@ func (r *RdsPubSubMsg) Quit() {
 func (r *RdsPubSubMsg) IsRunning() bool {
 	return atomic.LoadInt32(&r.running) != 0
 }
-func (r *RdsPubSubMsg) Set(rdsCli *redis.Client) {
+func (r *RdsPubSubMsg) Set(rdsCli redis.Cmdable) {
 	if r.redisClient == nil {
 		r.redisClient = rdsCli
 	}
@@ -93,15 +88,22 @@ func (r *RdsPubSubMsg) StartSubscription() {
 			for r.IsRunning() {
 				var channels []string
 				r.updateLock.RLock()
-				for k, _ := range r.newMsgRev {
+				for k := range r.newMsgRev {
 					channels = append(channels, k)
 				}
 				r.updateLock.RUnlock()
-				subCli := r.redisClient.PSubscribe(channels...)
+				var subCli *redis.PubSub
+				switch typ := r.redisClient.(type) {
+				case *redis.ClusterClient:
+					subCli = typ.PSubscribe(channels...)
+				case *redis.Client:
+					subCli = typ.PSubscribe(channels...)
+				default:
+					log.Fatal("invalid redisClient:%v", r.redisClient)
+				}
 				isOpen, _ := r.subscription(subCli, sleepSecond, channels)
 
 				if !isOpen {
-					subCli = r.redisClient.PSubscribe(channels...)
 					log.Error("StartSubscription sub.Channel() isClose, u.renewSubClient")
 					time.Sleep(time.Duration(sleepSecond) * time.Second)
 					sleepSecond += sleepSecond

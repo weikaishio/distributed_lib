@@ -68,9 +68,9 @@ func (c *ConfdTomlT) ConfdTomlGen() error {
 			keys = append(keys, fmt.Sprintf("\"/%s:%s\",", section, option))
 		}
 	}
-	os.Mkdir(DIR_CONFD, 0766)
+	_ = os.Mkdir(DIR_CONFD, 0766)
 
-	os.Mkdir(DIR_TEMPLATES, 0766)
+	_ = os.Mkdir(DIR_TEMPLATES, 0766)
 
 	_, file := path.Split(c.ConfPath)
 	if c.TmplSrc == "" {

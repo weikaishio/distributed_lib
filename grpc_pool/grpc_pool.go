@@ -14,7 +14,8 @@ const (
 	pool_max_size     = 66
 	pool_conn_timeout = 600 * time.Second
 )
-type Connection interface{
+
+type Connection interface {
 	Close() error
 }
 type PoolConn struct {
@@ -73,28 +74,29 @@ func (p *RPCPool) Borrow() Connection {
 		case conn := <-conns:
 			if conn.t.Add(pool_conn_timeout).Before(time.Now()) {
 				log.Trace("RPCPool Borrow conn is time of arrival close.")
-				conn.Close()
+				_ = conn.Close()
 				continue
 			} else {
-				grpcConn:=conn.Connection.(*grpc.ClientConn)
-				if grpcConn!=nil {
-
-				}
-				if grpcConn.GetState() != connectivity.Ready {
-					log.Warn("RPCPool Borrow conn.state not in ready, it state is:%s", grpcConn.GetState().String())
-					switch grpcConn.GetState() {
-					case connectivity.Idle:
-					case connectivity.Connecting:
-					case connectivity.TransientFailure:
-						fallthrough
-					case connectivity.Shutdown:
-						fallthrough
-					default:
-						conn.Close()
+				grpcConn := conn.Connection.(*grpc.ClientConn)
+				if grpcConn != nil {
+					if grpcConn.GetState() != connectivity.Ready {
+						log.Warn("RPCPool Borrow conn.state not in ready, it state is:%s", grpcConn.GetState().String())
+						switch grpcConn.GetState() {
+						case connectivity.Idle:
+						case connectivity.Connecting:
+						case connectivity.TransientFailure:
+							fallthrough
+						case connectivity.Shutdown:
+							fallthrough
+						default:
+							_ = conn.Close()
+						}
+						continue
+					} else {
+						return conn.Connection
 					}
+				}else{
 					continue
-				} else {
-					return conn.Connection
 				}
 			}
 		case <-time.After(time.Second):
@@ -108,7 +110,6 @@ func (p *RPCPool) Borrow() Connection {
 			}
 		}
 	}
-	return nil
 }
 func (p *RPCPool) Return(conn Connection) {
 	if conn == nil || p.poolChan == nil {
@@ -121,7 +122,7 @@ func (p *RPCPool) Return(conn Connection) {
 	case p.poolChan <- &PoolConn{conn, time.Now()}:
 	default:
 		log.Warn("RPCPool: conn recycled fail, It may be full")
-		conn.Close()
+		_ = conn.Close()
 	}
 	log.Trace("RPCPool: conn has been recycled conn, now it len:%d", len(p.poolChan))
 }
@@ -130,7 +131,7 @@ func (p *RPCPool) Close() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	for cli := range p.poolChan {
-		cli.Close()
+		_ = cli.Close()
 	}
 	close(p.poolChan)
 	log.Trace("RPCPool Closed")
