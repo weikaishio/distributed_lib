@@ -63,9 +63,6 @@ func (c *LRUCache) Get(key string) (interface{}, bool) {
 		}
 		return pNode.Data, has
 	}
-	c.caches.Range(func(key, value interface{}) bool {
-		
-	})
 	return nil, false
 }
 func (c *LRUCache) Set(key string, data interface{}) {

@@ -48,12 +48,12 @@ func (r *RdsPubSubMsg) AddSubscribe(channel string, onRevMsg func(msg interface{
 }
 
 func (r *RdsPubSubMsg) Publish(channel string, msg interface{}) error {
-	if r.redisClient != nil {
+	//if r.redisClient != nil {
 		_, err := r.redisClient.Publish(channel, msg).Result()
 		return err
-	} else {
-		return ERR_RedisNotInit
-	}
+	//} else {
+	//	return ERR_RedisNotInit
+	//}
 }
 
 func (r *RdsPubSubMsg) Quit() {
@@ -65,9 +65,7 @@ func (r *RdsPubSubMsg) IsRunning() bool {
 	return atomic.LoadInt32(&r.running) != 0
 }
 func (r *RdsPubSubMsg) Set(rdsCli redis.Cmdable) {
-	if r.redisClient == nil {
 		r.redisClient = rdsCli
-	}
 }
 func (r *RdsPubSubMsg) StartSubscription() {
 	if !atomic.CompareAndSwapInt32(&r.running, 0, 1) {
@@ -81,10 +79,10 @@ func (r *RdsPubSubMsg) StartSubscription() {
 	for r.IsRunning() {
 		select {
 		case <-time.After(1 * time.Second):
-			if r.redisClient == nil {
-				log.Warn("StartSubscription rdsPubSubClient.redisClient is nil")
-				break
-			}
+			//if r.redisClient == nil {
+			//	log.Warn("StartSubscription rdsPubSubClient.redisClient is nil")
+			//	break
+			//}
 			for r.IsRunning() {
 				var channels []string
 				r.updateLock.RLock()
