@@ -13,6 +13,7 @@ const (
 	pool_min_size     = 3
 	pool_max_size     = 66
 	pool_conn_timeout = 600 * time.Second
+	borrow_conn_timeout = 10 * time.Second
 )
 
 type Connection interface {
@@ -41,8 +42,10 @@ func (p *RPCPool) InitPool() {
 		if len(p.poolChan) == pool_max_size {
 			break
 		}
-		conn := p.CreateConn()
-		if conn != nil {
+		conn, err := p.CreateConn()
+		if err != nil {
+			log.Error("CreateConn err:%v", err)
+		} else if conn != nil {
 			p.poolChan <- &PoolConn{conn, time.Now()}
 		}
 	}
@@ -55,13 +58,13 @@ func (p *RPCPool) getPool() chan *PoolConn {
 	return conns
 }
 
-func (p *RPCPool) CreateConn() Connection {
+func (p *RPCPool) CreateConn() (Connection, error) {
 	conn, err := p.makeConn()
 	if err != nil {
 		log.Error("RPCPool CreateConn makeConn err:%v", err)
-		return nil
+		return nil,err
 	} else {
-		return conn
+		return conn,nil
 	}
 }
 func (p *RPCPool) Borrow() Connection {
@@ -69,6 +72,7 @@ func (p *RPCPool) Borrow() Connection {
 	if conns == nil {
 		return nil
 	}
+	beginAt := time.Now()
 	for {
 		select {
 		case conn := <-conns:
@@ -102,14 +106,24 @@ func (p *RPCPool) Borrow() Connection {
 		case <-time.After(time.Second):
 			if len(conns) < pool_max_size {
 				log.Trace("Borrow,len(p.poolChan):%d < pool_max_size", len(conns))
-				conn := p.CreateConn()
-				if conn != nil {
+				conn, err := p.CreateConn()
+				if err != nil {
+					log.Error("CreateConn err:%v", err)
+					goto timeout
+				} else if conn != nil {
 					log.Trace("RPCPool Borrow AddConn2Pool,  pool's len is %d after created conn", len(conns))
 					return conn
 				}
 			}
 		}
+		at := time.Now()
+		if at.Sub(beginAt) > borrow_conn_timeout {
+			goto timeout
+		}
 	}
+timeout:
+	log.Error("Borrow Conn: timeout")
+	return nil
 }
 func (p *RPCPool) Return(conn Connection) {
 	if conn == nil || p.poolChan == nil {
