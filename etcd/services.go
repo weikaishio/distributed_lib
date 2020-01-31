@@ -8,6 +8,7 @@ import (
 
 	"sync"
 
+	"github.com/weikaishio/distributed_lib/grpc_server"
 	"go.etcd.io/etcd/clientv3"
 	etcdnaming "go.etcd.io/etcd/clientv3/naming"
 	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
@@ -183,7 +184,7 @@ func (c *Discovery) DialWithAuth(serviceName, userName, password, serverName, ce
 		opts = append(opts, grpc.WithInsecure())
 	}
 	if userName != "" && password != "" {
-		authCreds := &AuthCreds{
+		authCreds := &grpc_server.AuthCreds{
 			UserName: userName,
 			Password: password,
 			IsTLS:    isTLS,
@@ -219,7 +220,7 @@ func DialWithAuthWithAddr(addr, userName, password, serverName, certFile string)
 		opts = append(opts, grpc.WithInsecure())
 	}
 	if userName != "" && password != "" {
-		authCreds := &AuthCreds{
+		authCreds := &grpc_server.AuthCreds{
 			UserName: userName,
 			Password: password,
 			IsTLS:    isTLS,
@@ -246,23 +247,4 @@ func (c *Discovery) WatchService(serviceName string) error {
 			log.Info("up:%v", up)
 		}
 	}
-}
-
-type AuthCreds struct {
-	UserName string
-	Password string
-	IsTLS    bool
-}
-
-func (a *AuthCreds) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
-	return map[string]string{
-		"username": a.UserName,
-		"password": a.Password,
-	}, nil
-}
-
-// RequireTransportSecurity indicates whether the credentials requires
-// transport security.
-func (a *AuthCreds) RequireTransportSecurity() bool {
-	return a.IsTLS
 }

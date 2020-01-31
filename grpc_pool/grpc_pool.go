@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	pool_min_size     = 3
-	pool_max_size     = 66
-	pool_conn_timeout = 600 * time.Second
-	borrow_conn_timeout = 10 * time.Second
+	dft_pool_min_size     = 3
+	dft_pool_max_size     = 66
+	dft_pool_conn_timeout = 600 * time.Second
+	dft_borrow_conn_timeout = 10 * time.Second
 )
 
 type Connection interface {
@@ -24,22 +24,32 @@ type PoolConn struct {
 	t time.Time
 }
 type RPCPool struct {
-	poolChan chan *PoolConn
-	mu       sync.RWMutex
-	makeConn func() (Connection, error)
+	poolMinSize       int
+	poolMaxSize       int
+	poolConnTimeout   time.Duration
+	borrowConnTimeout time.Duration
+	poolChan          chan *PoolConn
+	mu                sync.RWMutex
+	makeConn          func() (Connection, error)
 }
 
 func NewRPCPool(makeGRPCConn func() (Connection, error)) *RPCPool {
+	return NewRPCPoolWithOpts(dft_pool_min_size, dft_pool_max_size, dft_pool_conn_timeout, dft_borrow_conn_timeout, makeGRPCConn)
+}
+func NewRPCPoolWithOpts(minSize, maxSize int, connTimeout, borrowTimeout time.Duration, makeGRPCConn func() (Connection, error)) *RPCPool {
 	return &RPCPool{
-		poolChan: make(chan *PoolConn, pool_max_size),
-		mu:       sync.RWMutex{},
-		makeConn: makeGRPCConn,
+		poolMinSize:       minSize,
+		poolMaxSize:       maxSize,
+		poolConnTimeout:   connTimeout,
+		borrowConnTimeout: borrowTimeout,
+		poolChan:          make(chan *PoolConn, maxSize),
+		mu:                sync.RWMutex{},
+		makeConn:          makeGRPCConn,
 	}
 }
-
 func (p *RPCPool) InitPool() {
-	for i := 0; i < pool_min_size; i++ {
-		if len(p.poolChan) == pool_max_size {
+	for i := 0; i < p.poolMinSize; i++ {
+		if len(p.poolChan) == p.poolMaxSize {
 			break
 		}
 		conn, err := p.CreateConn()
@@ -76,7 +86,7 @@ func (p *RPCPool) Borrow() Connection {
 	for {
 		select {
 		case conn := <-conns:
-			if conn.t.Add(pool_conn_timeout).Before(time.Now()) {
+			if conn.t.Add(p.poolConnTimeout).Before(time.Now()) {
 				log.Trace("RPCPool Borrow conn is time of arrival close.")
 				_ = conn.Close()
 				continue
@@ -104,7 +114,7 @@ func (p *RPCPool) Borrow() Connection {
 				}
 			}
 		case <-time.After(time.Second):
-			if len(conns) < pool_max_size {
+			if len(conns) < p.poolMaxSize {
 				log.Trace("Borrow,len(p.poolChan):%d < pool_max_size", len(conns))
 				conn, err := p.CreateConn()
 				if err != nil {
@@ -117,7 +127,7 @@ func (p *RPCPool) Borrow() Connection {
 			}
 		}
 		at := time.Now()
-		if at.Sub(beginAt) > borrow_conn_timeout {
+		if at.Sub(beginAt) >= p.borrowConnTimeout {
 			goto timeout
 		}
 	}
