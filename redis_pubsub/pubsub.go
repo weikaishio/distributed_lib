@@ -79,10 +79,10 @@ func (r *RdsPubSubMsg) StartSubscription() {
 	for r.IsRunning() {
 		select {
 		case <-time.After(1 * time.Second):
-			//if r.redisClient == nil {
-			//	log.Warn("StartSubscription rdsPubSubClient.redisClient is nil")
-			//	break
-			//}
+			if r.redisClient == nil {
+				log.Warn("StartSubscription rdsPubSubClient.redisClient is nil")
+				break
+			}
 			for r.IsRunning() {
 				var channels []string
 				r.updateLock.RLock()
@@ -98,6 +98,7 @@ func (r *RdsPubSubMsg) StartSubscription() {
 					subCli = typ.PSubscribe(channels...)
 				default:
 					log.Fatal("invalid redisClient:%v", r.redisClient)
+					return
 				}
 				isOpen, _ := r.subscription(subCli, sleepSecond, channels)
 
@@ -105,6 +106,8 @@ func (r *RdsPubSubMsg) StartSubscription() {
 					log.Error("StartSubscription sub.Channel() isClose, u.renewSubClient")
 					time.Sleep(time.Duration(sleepSecond) * time.Second)
 					sleepSecond += sleepSecond
+				}else{
+					_ = subCli.Close()
 				}
 			}
 		}
@@ -127,24 +130,27 @@ func (r *RdsPubSubMsg) subscription(subCli *redis.PubSub, sleepSecond int, chann
 			log.Error("==== STACK TRACE BEGIN ====\npanic: %v\n%s\n===== STACK TRACE END =====", err, string(buf))
 		}
 	}()
-	select {
-	case msg, isOpen := <-subCli.Channel():
-		if isOpen {
-			r.updateLock.RLock()
-			onRevMsg, has := r.newMsgRev[msg.Channel]
-			r.updateLock.RUnlock()
-			if has {
-				onRevMsg(msg)
+	for {
+		select {
+		case msg, isOpen := <-subCli.Channel():
+			if isOpen {
+				r.updateLock.RLock()
+				onRevMsg, has := r.newMsgRev[msg.Channel]
+				r.updateLock.RUnlock()
+				if has {
+					onRevMsg(msg)
+				} else {
+					log.Warn("r.newMsgRev[%s] !has", msg.Channel)
+				}
 			} else {
-				log.Warn("r.newMsgRev[%s] !has", msg.Channel)
+				return false, nil
 			}
-		} else {
-			return false, nil
+		case <-r.newChannel:
+			log.Info("StartSubscription new channel rev")
+			return true, nil
+		case <-time.After(30 * time.Minute):
+			log.Info("StartSubscription <-sub.Channel() timeout for 30 min")
+			return true, nil
 		}
-	case <-r.newChannel:
-		log.Info("StartSubscription new channel rev")
-	case <-time.After(30 * time.Minute):
-		log.Info("StartSubscription <-sub.Channel() timeout for 30 min")
 	}
-	return true, nil
 }
