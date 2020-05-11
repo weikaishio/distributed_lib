@@ -43,7 +43,7 @@ func (b *Bloom) Load() (err error) {
 		err = fmt.Errorf("loadFromStore fail err:%v", err)
 		return
 	}
-	if data != nil {
+	if data != nil &&len(data)>0{
 		if b.isGZip {
 			var unzipData []byte
 			unzipData, err = b.unGZip(data)
